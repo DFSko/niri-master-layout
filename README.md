@@ -9,6 +9,9 @@ Temporary state is stored in:
 
 - `/tmp/niri-master-layout.state`
 
+## Demo
+https://github.com/user-attachments/assets/83452bd7-a537-404e-b386-48bab69c1330
+
 ## Build
 
 ```bash
