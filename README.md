@@ -1,0 +1,34 @@
+# niri-master-layout
+
+A small [niri](https://github.com/niri-wm/niri) helper that toggles a master layout.
+
+- First run: the focused window becomes `60%` (master), and up to `3` windows are stacked on the right at `40%`.
+- Second run: the previous layout is restored.
+
+Temporary state is stored in:
+
+- `/tmp/niri-master-layout.state`
+
+## Build
+
+```bash
+cargo build --release
+```
+
+## Run Manually
+
+```bash
+./target/release/niri-master-layout
+```
+
+## Hotkey in niri
+
+Add a keybind in `~/.config/niri/config.kdl`:
+
+```kdl
+binds {
+    Mod+Shift+M {
+        spawn "niri-master-layout"
+    }
+}
+```
