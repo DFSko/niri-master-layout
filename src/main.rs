@@ -24,8 +24,13 @@ fn main() -> io::Result<()> {
     let state_path = state_file_path();
 
     if state_path.exists() {
-        restore_layout_state(&mut socket, &state_path)?;
-        return Ok(());
+        match restore_layout_state(&mut socket, &state_path) {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                eprintln!("failed to restore saved layout, deleting stale state: {error}");
+                let _ = fs::remove_file(&state_path);
+            }
+        }
     }
 
     let Some(master) = focused_window(&mut socket)? else {
@@ -35,21 +40,31 @@ fn main() -> io::Result<()> {
     let Some(workspace_id) = master.workspace_id else {
         return Ok(());
     };
-    let Some((master_column, _)) = master.layout.pos_in_scrolling_layout else {
+    let all_windows_before = windows(&mut socket)?;
+
+    save_layout_state(&state_path, master.id, workspace_id, &all_windows_before)?;
+
+    run_action(&mut socket, Action::FocusWindow { id: master.id })?;
+    run_action(&mut socket, Action::MoveColumnToIndex { index: 1 })?;
+
+    let all_windows_after = windows(&mut socket)?;
+    let Some(master_after_move) = all_windows_after.iter().find(|window| window.id == master.id) else {
+        return Ok(());
+    };
+    let Some((master_column, _)) = master_after_move.layout.pos_in_scrolling_layout else {
         return Ok(());
     };
 
-    let all_windows_before = windows(&mut socket)?;
     let Some(stack_anchor_id) = nearest_right_column_anchor(
-        &all_windows_before,
+        &all_windows_after,
         workspace_id,
         master_column,
         master.id,
     ) else {
+        eprintln!("no right-side columns found; nothing to stack");
         return Ok(());
     };
 
-    save_layout_state(&state_path, master.id, workspace_id, &all_windows_before)?;
     set_window_width_percent(&mut socket, master.id, 60.0)?;
 
     run_action(&mut socket, Action::FocusWindow { id: stack_anchor_id })?;

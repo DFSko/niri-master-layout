@@ -1,4 +1,5 @@
 use std::io;
+use std::collections::HashMap;
 
 use niri_ipc::socket::Socket;
 use niri_ipc::{Action, Window};
@@ -94,46 +95,63 @@ pub fn style_stack_column(socket: &mut Socket, workspace_id: u64) -> io::Result<
 pub fn restore_columns(socket: &mut Socket, saved: &[SavedWindowSize]) -> io::Result<()> {
     let mut targets = saved.to_vec();
     targets.sort_by_key(|window| (window.column, window.row));
+    let desired_by_id: HashMap<u64, usize> = saved.iter().map(|window| (window.id, window.column)).collect();
 
     for target in targets {
         if target.column == 0 {
             continue;
         }
 
-        let all_windows = windows(socket)?;
-        let Some(current) = all_windows.iter().find(|window| window.id == target.id) else {
-            continue;
-        };
-        let Some((current_column, _)) = current.layout.pos_in_scrolling_layout else {
-            continue;
-        };
+        // Retry because niri actions may shift focus/indices after each step.
+        for _ in 0..8 {
+            let all_windows = windows(socket)?;
+            let Some(current) = all_windows.iter().find(|window| window.id == target.id) else {
+                break;
+            };
+            let Some((current_column, _)) = current.layout.pos_in_scrolling_layout else {
+                break;
+            };
+            let Some(workspace_id) = current.workspace_id else {
+                break;
+            };
 
-        if current_column == target.column {
-            continue;
+            let mut windows_in_current_column = 0usize;
+            let mut has_foreign_windows = false;
+
+            for window in &all_windows {
+                let Some((column, _)) = tiled_pos(window, workspace_id) else {
+                    continue;
+                };
+                if column != current_column {
+                    continue;
+                }
+
+                windows_in_current_column += 1;
+                let desired_column = desired_by_id.get(&window.id).copied().unwrap_or(usize::MAX);
+                if desired_column != target.column {
+                    has_foreign_windows = true;
+                }
+            }
+
+            if current_column == target.column && !has_foreign_windows {
+                break;
+            }
+
+            run_action_best_effort(socket, Action::FocusWindow { id: target.id })?;
+
+            if windows_in_current_column > 1 && has_foreign_windows {
+                run_action_best_effort(socket, Action::ExpelWindowFromColumn {})?;
+                run_action_best_effort(socket, Action::FocusWindow { id: target.id })?;
+                continue;
+            }
+
+            run_action_best_effort(
+                socket,
+                Action::MoveColumnToIndex {
+                    index: target.column,
+                },
+            )?;
         }
-
-        let Some(workspace_id) = current.workspace_id else {
-            continue;
-        };
-
-        let windows_in_current_column = all_windows
-            .iter()
-            .filter_map(|window| tiled_pos(window, workspace_id))
-            .filter(|(column, _)| *column == current_column)
-            .count();
-
-        run_action_best_effort(socket, Action::FocusWindow { id: target.id })?;
-
-        if windows_in_current_column > 1 {
-            run_action_best_effort(socket, Action::ExpelWindowFromColumn {})?;
-        }
-
-        run_action_best_effort(
-            socket,
-            Action::MoveColumnToIndex {
-                index: target.column,
-            },
-        )?;
     }
 
     Ok(())
