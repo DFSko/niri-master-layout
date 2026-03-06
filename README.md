@@ -10,6 +10,12 @@ Temporary state is stored per workspace under `std::env::temp_dir()`:
 
 - `<temp_dir>/niri-master-layout-<workspace_id>.state`
 
+## TODO
+
+- [x] Window layout handling (`master + stack`) is done.
+- [ ] Hotkey to change master window width.
+- [ ] Hotkey to add or remove a window from the stack.
+
 ## Demo
 https://github.com/user-attachments/assets/83452bd7-a537-404e-b386-48bab69c1330
 
