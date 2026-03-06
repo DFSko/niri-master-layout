@@ -3,11 +3,12 @@
 A small [niri](https://github.com/niri-wm/niri) helper that toggles a master layout.
 
 - First run: the focused window becomes `60%` (master), and up to `3` windows are stacked on the right at `40%`.
-- Second run: the previous layout is restored.
+- Next run (if a saved state exists): the previous layout is restored and the saved state file is removed.
+- If restore fails, the stale state file is removed and a new master layout is applied.
 
-Temporary state is stored per workspace in:
+Temporary state is stored per workspace under `std::env::temp_dir()`:
 
-- `/tmp/niri-master-layout-<workspace_id>.state`
+- `<temp_dir>/niri-master-layout-<workspace_id>.state`
 
 ## Demo
 https://github.com/user-attachments/assets/83452bd7-a537-404e-b386-48bab69c1330
