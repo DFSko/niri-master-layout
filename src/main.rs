@@ -5,7 +5,7 @@ mod window_utils;
 
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use niri_ipc::socket::Socket;
 use niri_ipc::{Action, ColumnDisplay};
@@ -25,41 +25,37 @@ const MAX_STACK_WINDOWS: usize = 3;
 
 fn main() -> io::Result<()> {
     let mut socket = Socket::connect()?;
-    let Some(initial_master) = focused_window(&mut socket)? else {
+    let Some(initial_context) = focused_context(&mut socket)? else {
         return Ok(());
     };
-    let Some(initial_workspace_id) = initial_master.workspace_id else {
-        return Ok(());
-    };
-    let state_path = state_file_path(initial_workspace_id);
 
-    if state_path.exists() {
-        match restore_layout_state(&mut socket, &state_path) {
+    if initial_context.state_path.exists() {
+        match restore_layout_state(&mut socket, &initial_context.state_path) {
             Ok(()) => return Ok(()),
             Err(error) => {
                 eprintln!("failed to restore saved layout, deleting stale state: {error}");
-                if let Err(remove_error) = remove_file_if_exists(&state_path) {
+                if let Err(remove_error) = remove_file_if_exists(&initial_context.state_path) {
                     eprintln!("failed to remove stale state file: {remove_error}");
                 }
             }
         }
     }
 
-    let Some(master) = focused_window(&mut socket)? else {
+    let Some(context) = focused_context(&mut socket)? else {
         return Ok(());
     };
-
-    let Some(workspace_id) = master.workspace_id else {
-        return Ok(());
-    };
-    let state_path = state_file_path(workspace_id);
 
     let all_windows_before = windows(&mut socket)?;
 
-    save_layout_state(&state_path, master.id, workspace_id, &all_windows_before)?;
-    let mut state_cleanup = PendingStateCleanup::new(&state_path);
+    save_layout_state(
+        &context.state_path,
+        context.master_id,
+        context.workspace_id,
+        &all_windows_before,
+    )?;
+    let mut state_cleanup = PendingStateCleanup::new(&context.state_path);
 
-    run_action(&mut socket, Action::FocusWindow { id: master.id })?;
+    focus_master(&mut socket, context.master_id)?;
     run_action(
         &mut socket,
         Action::MoveColumnToIndex {
@@ -70,7 +66,7 @@ fn main() -> io::Result<()> {
     let all_windows_after = windows(&mut socket)?;
     let Some(master_after_move) = all_windows_after
         .iter()
-        .find(|window| window.id == master.id)
+        .find(|window| window.id == context.master_id)
     else {
         return Ok(());
     };
@@ -78,16 +74,19 @@ fn main() -> io::Result<()> {
         return Ok(());
     };
 
-    let Some(stack_anchor_id) =
-        nearest_right_column_anchor(&all_windows_after, workspace_id, master_column, master.id)
-    else {
+    let Some(stack_anchor_id) = nearest_right_column_anchor(
+        &all_windows_after,
+        context.workspace_id,
+        master_column,
+        context.master_id,
+    ) else {
         eprintln!("no right-side columns found; nothing to stack");
         return Ok(());
     };
 
     state_cleanup.keep();
 
-    set_window_width_percent(&mut socket, master.id, MASTER_WIDTH_PERCENT)?;
+    focus_master_with_width(&mut socket, context.master_id)?;
 
     run_action(
         &mut socket,
@@ -102,12 +101,41 @@ fn main() -> io::Result<()> {
         },
     )?;
 
-    pull_windows_into_stack(&mut socket, workspace_id, MAX_STACK_WINDOWS)?;
-    style_stack_column(&mut socket, workspace_id)?;
-    run_action(&mut socket, Action::FocusWindow { id: master.id })?;
-    set_window_width_percent(&mut socket, master.id, MASTER_WIDTH_PERCENT)?;
+    pull_windows_into_stack(&mut socket, context.workspace_id, MAX_STACK_WINDOWS)?;
+    style_stack_column(&mut socket, context.workspace_id)?;
+    focus_master_with_width(&mut socket, context.master_id)?;
 
     Ok(())
+}
+
+struct FocusedContext {
+    master_id: u64,
+    workspace_id: u64,
+    state_path: PathBuf,
+}
+
+fn focused_context(socket: &mut Socket) -> io::Result<Option<FocusedContext>> {
+    let Some(window) = focused_window(socket)? else {
+        return Ok(None);
+    };
+    let Some(workspace_id) = window.workspace_id else {
+        return Ok(None);
+    };
+
+    Ok(Some(FocusedContext {
+        master_id: window.id,
+        workspace_id,
+        state_path: state_file_path(workspace_id),
+    }))
+}
+
+fn focus_master(socket: &mut Socket, master_id: u64) -> io::Result<()> {
+    run_action(socket, Action::FocusWindow { id: master_id })
+}
+
+fn focus_master_with_width(socket: &mut Socket, master_id: u64) -> io::Result<()> {
+    focus_master(socket, master_id)?;
+    set_window_width_percent(socket, master_id, MASTER_WIDTH_PERCENT)
 }
 
 struct PendingStateCleanup<'a> {

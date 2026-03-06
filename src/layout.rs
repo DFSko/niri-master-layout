@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io;
 
 use niri_ipc::socket::Socket;
@@ -11,7 +11,6 @@ use crate::state_file::SavedWindowSize;
 use crate::window_utils::tiled_pos;
 
 const STACK_WINDOW_WIDTH_PERCENT: f64 = 40.0;
-const RESTORE_RETRIES: usize = 8;
 
 pub fn nearest_right_column_anchor(
     windows: &[Window],
@@ -36,10 +35,7 @@ pub fn pull_windows_into_stack(
     max_in_stack: usize,
 ) -> io::Result<()> {
     loop {
-        let Some(current) = focused_window(socket)? else {
-            break;
-        };
-        let Some((stack_column, _)) = current.layout.pos_in_scrolling_layout else {
+        let Some(stack_column) = focused_stack_column(socket)? else {
             break;
         };
 
@@ -58,10 +54,7 @@ pub fn pull_windows_into_stack(
 }
 
 pub fn style_stack_column(socket: &mut Socket, workspace_id: u64) -> io::Result<()> {
-    let Some(current) = focused_window(socket)? else {
-        return Ok(());
-    };
-    let Some((stack_column, _)) = current.layout.pos_in_scrolling_layout else {
+    let Some(stack_column) = focused_stack_column(socket)? else {
         return Ok(());
     };
 
@@ -102,34 +95,30 @@ pub fn restore_columns(socket: &mut Socket, saved: &[SavedWindowSize]) -> io::Re
             continue;
         }
 
-        // Retry because niri actions may shift focus/indices after each step.
-        for _ in 0..RESTORE_RETRIES {
+        let mut seen_states = HashSet::new();
+        loop {
             let all_windows = windows(socket)?;
-            let Some(current) = all_windows.iter().find(|window| window.id == target.id) else {
-                break;
-            };
-            let Some((current_column, _)) = current.layout.pos_in_scrolling_layout else {
-                break;
-            };
-            let Some(workspace_id) = current.workspace_id else {
+            let Some(state) =
+                target_restore_state(&all_windows, target.id, target.column, &desired_by_id)
+            else {
                 break;
             };
 
-            let (windows_in_current_column, has_foreign_windows) = current_column_state(
-                &all_windows,
-                workspace_id,
-                current_column,
-                target.column,
-                &desired_by_id,
-            );
+            if state.current_column == target.column && !state.has_foreign_windows {
+                break;
+            }
 
-            if current_column == target.column && !has_foreign_windows {
+            if !seen_states.insert(state.snapshot) {
+                eprintln!(
+                    "detected restore cycle for window {}, stop restoring this target",
+                    target.id
+                );
                 break;
             }
 
             run_action_best_effort(socket, Action::FocusWindow { id: target.id })?;
 
-            if windows_in_current_column > 1 && has_foreign_windows {
+            if state.windows_in_current_column > 1 && state.has_foreign_windows {
                 run_action_best_effort(socket, Action::ExpelWindowFromColumn {})?;
                 run_action_best_effort(socket, Action::FocusWindow { id: target.id })?;
                 continue;
@@ -147,21 +136,46 @@ pub fn restore_columns(socket: &mut Socket, saved: &[SavedWindowSize]) -> io::Re
     Ok(())
 }
 
-fn current_column_state(
+fn target_restore_state(
     all_windows: &[Window],
-    workspace_id: u64,
-    current_column: usize,
+    target_id: u64,
     target_column: usize,
     desired_by_id: &HashMap<u64, usize>,
-) -> (usize, bool) {
-    all_windows
-        .iter()
-        .filter_map(|window| tiled_pos(window, workspace_id).map(|(column, _)| (column, window.id)))
-        .filter(|(column, _)| *column == current_column)
-        .fold((0usize, false), |(count, has_foreign), (_, window_id)| {
-            let desired_column = desired_by_id.get(&window_id).copied().unwrap_or(usize::MAX);
-            (count + 1, has_foreign || desired_column != target_column)
-        })
+) -> Option<TargetRestoreState> {
+    let current = all_windows.iter().find(|window| window.id == target_id)?;
+    let (current_column, _) = current.layout.pos_in_scrolling_layout?;
+    let workspace_id = current.workspace_id?;
+
+    let mut windows_in_current_column = 0usize;
+    let mut has_foreign_windows = false;
+    let mut column_window_ids = Vec::new();
+
+    for window in all_windows {
+        let Some((window_column, _)) = tiled_pos(window, workspace_id) else {
+            continue;
+        };
+        if window_column != current_column {
+            continue;
+        }
+
+        windows_in_current_column += 1;
+        column_window_ids.push(window.id);
+
+        let desired_column = desired_by_id.get(&window.id).copied().unwrap_or(usize::MAX);
+        has_foreign_windows |= desired_column != target_column;
+    }
+
+    column_window_ids.sort_unstable();
+
+    Some(TargetRestoreState {
+        current_column,
+        windows_in_current_column,
+        has_foreign_windows,
+        snapshot: RestoreSnapshot {
+            current_column,
+            column_window_ids,
+        },
+    })
 }
 
 fn stack_column_state(
@@ -169,16 +183,58 @@ fn stack_column_state(
     workspace_id: u64,
     stack_column: usize,
 ) -> (usize, bool) {
+    let analysis = analyze_column(all_windows, workspace_id, stack_column);
+    (analysis.count_in_column, analysis.has_right_columns)
+}
+
+fn focused_stack_column(socket: &mut Socket) -> io::Result<Option<usize>> {
+    let Some(current) = focused_window(socket)? else {
+        return Ok(None);
+    };
+
+    Ok(current
+        .layout
+        .pos_in_scrolling_layout
+        .map(|(column, _)| column))
+}
+
+struct ColumnAnalysis {
+    count_in_column: usize,
+    has_right_columns: bool,
+}
+
+fn analyze_column(all_windows: &[Window], workspace_id: u64, column: usize) -> ColumnAnalysis {
     all_windows
         .iter()
-        .filter_map(|window| tiled_pos(window, workspace_id))
-        .fold((0usize, false), |(count, has_right), (column, _)| {
-            if column == stack_column {
-                (count + 1, has_right)
-            } else if column > stack_column {
-                (count, true)
-            } else {
-                (count, has_right)
-            }
+        .filter_map(|window| {
+            tiled_pos(window, workspace_id).map(|(window_column, _)| window_column)
         })
+        .fold(
+            ColumnAnalysis {
+                count_in_column: 0,
+                has_right_columns: false,
+            },
+            |mut analysis, window_column| {
+                if window_column == column {
+                    analysis.count_in_column += 1;
+                } else if window_column > column {
+                    analysis.has_right_columns = true;
+                }
+
+                analysis
+            },
+        )
+}
+
+struct TargetRestoreState {
+    current_column: usize,
+    windows_in_current_column: usize,
+    has_foreign_windows: bool,
+    snapshot: RestoreSnapshot,
+}
+
+#[derive(Hash, PartialEq, Eq)]
+struct RestoreSnapshot {
+    current_column: usize,
+    column_window_ids: Vec<u64>,
 }
