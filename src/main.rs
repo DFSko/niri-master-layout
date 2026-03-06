@@ -21,7 +21,13 @@ use crate::state_file::{load_layout_state, save_layout_state, state_file_path};
 
 fn main() -> io::Result<()> {
     let mut socket = Socket::connect()?;
-    let state_path = state_file_path();
+    let Some(initial_master) = focused_window(&mut socket)? else {
+        return Ok(());
+    };
+    let Some(initial_workspace_id) = initial_master.workspace_id else {
+        return Ok(());
+    };
+    let state_path = state_file_path(initial_workspace_id);
 
     if state_path.exists() {
         match restore_layout_state(&mut socket, &state_path) {
@@ -40,9 +46,12 @@ fn main() -> io::Result<()> {
     let Some(workspace_id) = master.workspace_id else {
         return Ok(());
     };
+    let state_path = state_file_path(workspace_id);
+
     let all_windows_before = windows(&mut socket)?;
 
     save_layout_state(&state_path, master.id, workspace_id, &all_windows_before)?;
+    let mut state_cleanup = PendingStateCleanup::new(&state_path);
 
     run_action(&mut socket, Action::FocusWindow { id: master.id })?;
     run_action(&mut socket, Action::MoveColumnToIndex { index: 1 })?;
@@ -65,6 +74,8 @@ fn main() -> io::Result<()> {
         return Ok(());
     };
 
+    state_cleanup.keep();
+
     set_window_width_percent(&mut socket, master.id, 60.0)?;
 
     run_action(&mut socket, Action::FocusWindow { id: stack_anchor_id })?;
@@ -81,6 +92,35 @@ fn main() -> io::Result<()> {
     set_window_width_percent(&mut socket, master.id, 60.0)?;
 
     Ok(())
+}
+
+struct PendingStateCleanup<'a> {
+    path: &'a Path,
+    keep: bool,
+}
+
+impl<'a> PendingStateCleanup<'a> {
+    fn new(path: &'a Path) -> Self {
+        Self { path, keep: false }
+    }
+
+    fn keep(&mut self) {
+        self.keep = true;
+    }
+}
+
+impl Drop for PendingStateCleanup<'_> {
+    fn drop(&mut self) {
+        if self.keep {
+            return;
+        }
+
+        if let Err(error) = fs::remove_file(self.path) {
+            if error.kind() != io::ErrorKind::NotFound {
+                eprintln!("failed to remove stale state file: {error}");
+            }
+        }
+    }
 }
 
 fn restore_layout_state(socket: &mut Socket, path: &Path) -> io::Result<()> {

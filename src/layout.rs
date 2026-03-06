@@ -115,23 +115,13 @@ pub fn restore_columns(socket: &mut Socket, saved: &[SavedWindowSize]) -> io::Re
                 break;
             };
 
-            let mut windows_in_current_column = 0usize;
-            let mut has_foreign_windows = false;
-
-            for window in &all_windows {
-                let Some((column, _)) = tiled_pos(window, workspace_id) else {
-                    continue;
-                };
-                if column != current_column {
-                    continue;
-                }
-
-                windows_in_current_column += 1;
-                let desired_column = desired_by_id.get(&window.id).copied().unwrap_or(usize::MAX);
-                if desired_column != target.column {
-                    has_foreign_windows = true;
-                }
-            }
+            let (windows_in_current_column, has_foreign_windows) = current_column_state(
+                &all_windows,
+                workspace_id,
+                current_column,
+                target.column,
+                &desired_by_id,
+            );
 
             if current_column == target.column && !has_foreign_windows {
                 break;
@@ -155,4 +145,21 @@ pub fn restore_columns(socket: &mut Socket, saved: &[SavedWindowSize]) -> io::Re
     }
 
     Ok(())
+}
+
+fn current_column_state(
+    all_windows: &[Window],
+    workspace_id: u64,
+    current_column: usize,
+    target_column: usize,
+    desired_by_id: &HashMap<u64, usize>,
+) -> (usize, bool) {
+    all_windows
+        .iter()
+        .filter_map(|window| tiled_pos(window, workspace_id).map(|(column, _)| (column, window.id)))
+        .filter(|(column, _)| *column == current_column)
+        .fold((0usize, false), |(count, has_foreign), (_, window_id)| {
+            let desired_column = desired_by_id.get(&window_id).copied().unwrap_or(usize::MAX);
+            (count + 1, has_foreign || desired_column != target_column)
+        })
 }

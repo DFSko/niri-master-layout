@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::window_utils::tiled_pos;
 
-const STATE_FILE_NAME: &str = "niri-master-layout.state";
+const STATE_FILE_NAME_PREFIX: &str = "niri-master-layout";
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct SavedWindowSize {
@@ -24,9 +24,9 @@ pub struct SavedLayoutState {
     pub windows: Vec<SavedWindowSize>,
 }
 
-pub fn state_file_path() -> PathBuf {
+pub fn state_file_path(workspace_id: u64) -> PathBuf {
     let mut path = std::env::temp_dir();
-    path.push(STATE_FILE_NAME);
+    path.push(format!("{STATE_FILE_NAME_PREFIX}-{workspace_id}.state"));
     path
 }
 

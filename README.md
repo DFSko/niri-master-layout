@@ -5,9 +5,9 @@ A small [niri](https://github.com/niri-wm/niri) helper that toggles a master lay
 - First run: the focused window becomes `60%` (master), and up to `3` windows are stacked on the right at `40%`.
 - Second run: the previous layout is restored.
 
-Temporary state is stored in:
+Temporary state is stored per workspace in:
 
-- `/tmp/niri-master-layout.state`
+- `/tmp/niri-master-layout-<workspace_id>.state`
 
 ## Demo
 https://github.com/user-attachments/assets/83452bd7-a537-404e-b386-48bab69c1330
