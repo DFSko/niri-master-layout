@@ -17,13 +17,7 @@ pub fn make_tiled_window(
         is_focused: false,
         is_floating: false,
         is_urgent: false,
-        layout: WindowLayout {
-            pos_in_scrolling_layout: Some((column, row)),
-            tile_size: (width as f64, height as f64),
-            window_size: (width, height),
-            tile_pos_in_workspace_view: None,
-            window_offset_in_tile: (0.0, 0.0),
-        },
+        layout: tiled_layout(column, row, width, height),
         focus_timestamp: None,
     }
 }
@@ -38,13 +32,27 @@ pub fn make_floating_window(id: u64, workspace_id: u64, width: i32, height: i32)
         is_focused: false,
         is_floating: true,
         is_urgent: false,
-        layout: WindowLayout {
-            pos_in_scrolling_layout: None,
-            tile_size: (width as f64, height as f64),
-            window_size: (width, height),
-            tile_pos_in_workspace_view: None,
-            window_offset_in_tile: (0.0, 0.0),
-        },
+        layout: floating_layout(width, height),
         focus_timestamp: None,
+    }
+}
+
+fn tiled_layout(column: usize, row: usize, width: i32, height: i32) -> WindowLayout {
+    WindowLayout {
+        pos_in_scrolling_layout: Some((column, row)),
+        tile_size: (width as f64, height as f64),
+        window_size: (width, height),
+        tile_pos_in_workspace_view: None,
+        window_offset_in_tile: (0.0, 0.0),
+    }
+}
+
+fn floating_layout(width: i32, height: i32) -> WindowLayout {
+    WindowLayout {
+        pos_in_scrolling_layout: None,
+        tile_size: (width as f64, height as f64),
+        window_size: (width, height),
+        tile_pos_in_workspace_view: None,
+        window_offset_in_tile: (0.0, 0.0),
     }
 }
