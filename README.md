@@ -31,7 +31,7 @@ Example:
 
 ```bash
 curl -L -o niri-master-layout.tar.gz \
-  https://github.com/<owner>/<repo>/releases/latest/download/niri-master-layout-v0.2.0.tar.gz
+  https://github.com/<owner>/<repo>/releases/latest/download/niri-master-layout-v0.3.0.tar.gz
 tar -xzf niri-master-layout.tar.gz
 install -Dm755 niri-master-layout ~/.local/bin/niri-master-layout
 ```
