@@ -57,12 +57,3 @@ binds {
     }
 }
 ```
-
-## Release For Maintainers
-
-Push a version tag, and GitHub Actions will build the binary and publish assets to the Release:
-
-```bash
-git tag -a v0.2.0 -m "Release v0.2.0"
-git push origin v0.2.0
-```
