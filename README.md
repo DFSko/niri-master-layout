@@ -5,6 +5,8 @@ A small [niri](https://github.com/niri-wm/niri) helper that toggles a master lay
 - First run: the focused window becomes `60%` (master), and up to `3` windows are stacked on the right at `40%`.
 - Next run (if a saved state exists): the previous layout is restored and the saved state file is removed.
 - If restore fails, the stale state file is removed and a new master layout is applied.
+- `grow-master` increases the master width by `10%`.
+- `shrink-master` decreases the master width by `10%`.
 
 Temporary state is stored per workspace under `std::env::temp_dir()`:
 
@@ -13,7 +15,7 @@ Temporary state is stored per workspace under `std::env::temp_dir()`:
 ## TODO
 
 - [x] Window layout handling (`master + stack`) is done.
-- [ ] Hotkey to change master window width.
+- [x] Hotkey to change master window width.
 - [ ] Hotkey to add or remove a window from the stack.
 
 ## Demo
@@ -44,6 +46,8 @@ cargo build --release
 
 ```bash
 ./target/release/niri-master-layout
+./target/release/niri-master-layout grow-master
+./target/release/niri-master-layout shrink-master
 ```
 
 ## Hotkey in niri
@@ -54,6 +58,12 @@ Add a keybind in `~/.config/niri/config.kdl`:
 binds {
     Mod+Shift+M {
         spawn "niri-master-layout"
+    }
+    Mod+Shift+L {
+        spawn "niri-master-layout" "grow-master"
+    }
+    Mod+Shift+H {
+        spawn "niri-master-layout" "shrink-master"
     }
 }
 ```
