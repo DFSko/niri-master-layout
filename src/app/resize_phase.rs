@@ -28,11 +28,21 @@ pub fn resize_master_window(
         return Ok(());
     };
 
-    let master_width_percent = next_master_width_percent(layout.master_width_percent, command);
-    let stack_width_percent = 100.0 - master_width_percent;
-
-    focus_master_with_width(client, layout.master_id, master_width_percent)?;
-    set_windows_width_percent(client, &layout.stack_window_ids, stack_width_percent)?;
+    match command {
+        AppCommand::GrowMaster => {
+            let stack_width_percent = shrink_column_width_percent(layout.stack_width_percent);
+            let master_width_percent = 100.0 - stack_width_percent;
+            set_windows_width_percent(client, &layout.stack_window_ids, stack_width_percent)?;
+            focus_master_with_width(client, layout.master_id, master_width_percent)?;
+        }
+        AppCommand::ShrinkMaster => {
+            let master_width_percent = shrink_column_width_percent(layout.master_width_percent);
+            let stack_width_percent = 100.0 - master_width_percent;
+            focus_master_with_width(client, layout.master_id, master_width_percent)?;
+            set_windows_width_percent(client, &layout.stack_window_ids, stack_width_percent)?;
+        }
+        AppCommand::Toggle => {}
+    }
 
     Ok(())
 }
@@ -49,20 +59,15 @@ fn set_windows_width_percent(
     Ok(())
 }
 
-fn next_master_width_percent(current_percent: f64, command: AppCommand) -> f64 {
+fn shrink_column_width_percent(current_percent: f64) -> f64 {
     let current_step = (current_percent / RESIZE_STEP_PERCENT).round() * RESIZE_STEP_PERCENT;
-    let delta = match command {
-        AppCommand::GrowMaster => RESIZE_STEP_PERCENT,
-        AppCommand::ShrinkMaster => -RESIZE_STEP_PERCENT,
-        AppCommand::Toggle => 0.0,
-    };
-
-    (current_step + delta).clamp(MIN_MASTER_WIDTH_PERCENT, MAX_MASTER_WIDTH_PERCENT)
+    (current_step - RESIZE_STEP_PERCENT).clamp(MIN_MASTER_WIDTH_PERCENT, MAX_MASTER_WIDTH_PERCENT)
 }
 
 struct ActiveMasterLayout {
     master_id: u64,
     master_width_percent: f64,
+    stack_width_percent: f64,
     stack_window_ids: Vec<u64>,
 }
 
@@ -132,6 +137,7 @@ impl ActiveMasterLayout {
 
         let total_width: i32 = column_widths.values().copied().sum();
         let master_width = *column_widths.get(&master_column)?;
+        let stack_width = *column_widths.get(&stack_column)?;
         if total_width <= 0 || master_width <= 0 {
             return None;
         }
@@ -139,6 +145,7 @@ impl ActiveMasterLayout {
         Some(Self {
             master_id,
             master_width_percent: master_width as f64 * 100.0 / total_width as f64,
+            stack_width_percent: stack_width as f64 * 100.0 / total_width as f64,
             stack_window_ids,
         })
     }

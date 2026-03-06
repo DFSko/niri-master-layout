@@ -29,27 +29,27 @@ fn grow_master_changes_width_when_master_layout_is_active() {
     app::run(&mut client, AppCommand::GrowMaster).expect("run should succeed");
 
     assert_eq!(client.actions.len(), 4);
-    assert!(matches!(client.actions[0], Action::FocusWindow { id } if id == master_id));
     assert!(matches!(
-        client.actions[1],
-        Action::SetWindowWidth {
-            id: Some(id),
-            change: SizeChange::SetProportion(width),
-        } if id == master_id && (width - 70.0).abs() < f64::EPSILON
-    ));
-    assert!(matches!(
-        client.actions[2],
+        client.actions[0],
         Action::SetWindowWidth {
             id: Some(id),
             change: SizeChange::SetProportion(width),
         } if id == 11 && (width - 30.0).abs() < f64::EPSILON
     ));
     assert!(matches!(
-        client.actions[3],
+        client.actions[1],
         Action::SetWindowWidth {
             id: Some(id),
             change: SizeChange::SetProportion(width),
         } if id == 12 && (width - 30.0).abs() < f64::EPSILON
+    ));
+    assert!(matches!(client.actions[2], Action::FocusWindow { id } if id == master_id));
+    assert!(matches!(
+        client.actions[3],
+        Action::SetWindowWidth {
+            id: Some(id),
+            change: SizeChange::SetProportion(width),
+        } if id == master_id && (width - 70.0).abs() < f64::EPSILON
     ));
 
     remove_file_if_exists(&state_path);
