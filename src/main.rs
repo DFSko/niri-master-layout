@@ -19,6 +19,10 @@ use crate::layout::{
 };
 use crate::state_file::{load_layout_state, save_layout_state, state_file_path};
 
+const MASTER_COLUMN_INDEX: usize = 1;
+const MASTER_WIDTH_PERCENT: f64 = 60.0;
+const MAX_STACK_WINDOWS: usize = 3;
+
 fn main() -> io::Result<()> {
     let mut socket = Socket::connect()?;
     let Some(initial_master) = focused_window(&mut socket)? else {
@@ -34,7 +38,9 @@ fn main() -> io::Result<()> {
             Ok(()) => return Ok(()),
             Err(error) => {
                 eprintln!("failed to restore saved layout, deleting stale state: {error}");
-                let _ = fs::remove_file(&state_path);
+                if let Err(remove_error) = remove_file_if_exists(&state_path) {
+                    eprintln!("failed to remove stale state file: {remove_error}");
+                }
             }
         }
     }
@@ -54,31 +60,41 @@ fn main() -> io::Result<()> {
     let mut state_cleanup = PendingStateCleanup::new(&state_path);
 
     run_action(&mut socket, Action::FocusWindow { id: master.id })?;
-    run_action(&mut socket, Action::MoveColumnToIndex { index: 1 })?;
+    run_action(
+        &mut socket,
+        Action::MoveColumnToIndex {
+            index: MASTER_COLUMN_INDEX,
+        },
+    )?;
 
     let all_windows_after = windows(&mut socket)?;
-    let Some(master_after_move) = all_windows_after.iter().find(|window| window.id == master.id) else {
+    let Some(master_after_move) = all_windows_after
+        .iter()
+        .find(|window| window.id == master.id)
+    else {
         return Ok(());
     };
     let Some((master_column, _)) = master_after_move.layout.pos_in_scrolling_layout else {
         return Ok(());
     };
 
-    let Some(stack_anchor_id) = nearest_right_column_anchor(
-        &all_windows_after,
-        workspace_id,
-        master_column,
-        master.id,
-    ) else {
+    let Some(stack_anchor_id) =
+        nearest_right_column_anchor(&all_windows_after, workspace_id, master_column, master.id)
+    else {
         eprintln!("no right-side columns found; nothing to stack");
         return Ok(());
     };
 
     state_cleanup.keep();
 
-    set_window_width_percent(&mut socket, master.id, 60.0)?;
+    set_window_width_percent(&mut socket, master.id, MASTER_WIDTH_PERCENT)?;
 
-    run_action(&mut socket, Action::FocusWindow { id: stack_anchor_id })?;
+    run_action(
+        &mut socket,
+        Action::FocusWindow {
+            id: stack_anchor_id,
+        },
+    )?;
     run_action(
         &mut socket,
         Action::SetColumnDisplay {
@@ -86,10 +102,10 @@ fn main() -> io::Result<()> {
         },
     )?;
 
-    pull_windows_into_stack(&mut socket, workspace_id, 3)?;
+    pull_windows_into_stack(&mut socket, workspace_id, MAX_STACK_WINDOWS)?;
     style_stack_column(&mut socket, workspace_id)?;
     run_action(&mut socket, Action::FocusWindow { id: master.id })?;
-    set_window_width_percent(&mut socket, master.id, 60.0)?;
+    set_window_width_percent(&mut socket, master.id, MASTER_WIDTH_PERCENT)?;
 
     Ok(())
 }
@@ -115,10 +131,8 @@ impl Drop for PendingStateCleanup<'_> {
             return;
         }
 
-        if let Err(error) = fs::remove_file(self.path) {
-            if error.kind() != io::ErrorKind::NotFound {
-                eprintln!("failed to remove stale state file: {error}");
-            }
+        if let Err(error) = remove_file_if_exists(self.path) {
+            eprintln!("failed to remove stale state file: {error}");
         }
     }
 }
@@ -133,13 +147,21 @@ fn restore_layout_state(socket: &mut Socket, path: &Path) -> io::Result<()> {
         set_window_height_fixed_best_effort(socket, window.id, window.height)?;
     }
 
-    run_action_best_effort(socket, Action::FocusWindow { id: state.master_id })?;
-
-    if let Err(error) = fs::remove_file(path) {
-        if error.kind() != io::ErrorKind::NotFound {
-            return Err(error);
-        }
-    }
+    run_action_best_effort(
+        socket,
+        Action::FocusWindow {
+            id: state.master_id,
+        },
+    )?;
+    remove_file_if_exists(path)?;
 
     Ok(())
+}
+
+fn remove_file_if_exists(path: &Path) -> io::Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error),
+    }
 }

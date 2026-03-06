@@ -35,7 +35,11 @@ pub fn run_action_best_effort(socket: &mut Socket, action: Action) -> io::Result
     Ok(())
 }
 
-pub fn set_window_width_percent(socket: &mut Socket, window_id: u64, percent: f64) -> io::Result<()> {
+pub fn set_window_width_percent(
+    socket: &mut Socket,
+    window_id: u64,
+    percent: f64,
+) -> io::Result<()> {
     run_action(
         socket,
         Action::SetWindowWidth {
