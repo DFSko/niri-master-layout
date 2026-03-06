@@ -16,21 +16,17 @@ pub fn target_restore_state(
     let (current_column, _) = current.layout.pos_in_scrolling_layout?;
     let workspace_id = current.workspace_id?;
 
-    let mut has_foreign_windows = false;
-    let mut column_window_ids = Vec::new();
-
-    for window in windows {
-        let Some((window_column, _)) = tiled_pos(window, workspace_id) else {
-            continue;
-        };
-        if window_column != current_column {
-            continue;
-        }
-
-        column_window_ids.push(window.id);
-        let desired_column = desired_by_id.get(&window.id).copied().unwrap_or(usize::MAX);
-        has_foreign_windows |= desired_column != target_column;
-    }
+    let mut column_window_ids = windows
+        .iter()
+        .filter_map(|window| {
+            tiled_pos(window, workspace_id).and_then(|(window_column, _)| {
+                (window_column == current_column).then_some(window.id)
+            })
+        })
+        .collect::<Vec<_>>();
+    let has_foreign_windows = column_window_ids.iter().any(|window_id| {
+        desired_by_id.get(window_id).copied().unwrap_or(usize::MAX) != target_column
+    });
 
     column_window_ids.sort_unstable();
 

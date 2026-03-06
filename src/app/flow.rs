@@ -14,12 +14,15 @@ pub fn run(client: &mut impl IpcClient, command: AppCommand) -> io::Result<()> {
         return Ok(());
     };
 
-    if matches!(command, AppCommand::GrowMaster | AppCommand::ShrinkMaster) {
-        return resize_master_window(client, &initial_context, command);
-    }
-
-    if try_restore_layout(client, &initial_context.state_path)? {
-        return Ok(());
+    match command {
+        AppCommand::GrowMaster | AppCommand::ShrinkMaster => {
+            return resize_master_window(client, &initial_context, command);
+        }
+        AppCommand::Toggle => {
+            if try_restore_layout(client, &initial_context.state_path)? {
+                return Ok(());
+            }
+        }
     }
 
     let Some(context) = focused_context(client, state_file_path)? else {
