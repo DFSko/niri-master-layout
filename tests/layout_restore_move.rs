@@ -4,7 +4,8 @@ use niri_ipc::Action;
 use niri_master_layout::layout::restore_columns;
 use niri_master_layout::state_file::SavedWindowSize;
 
-use common::{FakeClient, make_tiled_window};
+use common::fake_client::FakeClient;
+use common::windows::make_tiled_window;
 
 #[test]
 fn restore_columns_move_when_single_non_target_window() {

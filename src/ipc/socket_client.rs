@@ -44,7 +44,7 @@ impl IpcClient for SocketClient {
     }
 
     fn run_action_best_effort(&mut self, action: Action) -> io::Result<()> {
-        if self.socket.send(Request::Action(action))?.is_err() {}
+        drop(self.socket.send(Request::Action(action))?);
         Ok(())
     }
 }
