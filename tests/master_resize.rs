@@ -2,8 +2,8 @@ mod common;
 
 use niri_ipc::{Action, SizeChange};
 use niri_master_layout::app;
-use niri_master_layout::cli::AppCommand;
-use niri_master_layout::state_file::{save_layout_state, state_file_path};
+use niri_master_layout::app::AppCommand;
+use niri_master_layout::state::{save_state, state_path};
 
 use common::fake_client::FakeClient;
 use common::remove_file_if_exists;
@@ -13,13 +13,13 @@ use common::windows::make_tiled_window;
 fn grow_master_changes_width_when_master_layout_is_active() {
     let workspace_id = 7001;
     let master_id = 10;
-    let state_path = state_file_path(workspace_id);
+    let state_path = state_path(workspace_id);
     let windows = vec![
         make_tiled_window(master_id, workspace_id, 1, 1, 600, 900),
         make_tiled_window(11, workspace_id, 2, 1, 400, 450),
         make_tiled_window(12, workspace_id, 2, 2, 400, 450),
     ];
-    save_layout_state(&state_path, master_id, workspace_id, &windows).expect("save should succeed");
+    save_state(&state_path, master_id, workspace_id, &windows).expect("save should succeed");
     let mut focused = make_tiled_window(99, workspace_id, 3, 1, 200, 900);
     focused.is_focused = true;
     let mut client = FakeClient::default();
@@ -59,12 +59,12 @@ fn grow_master_changes_width_when_master_layout_is_active() {
 fn resize_is_noop_when_master_layout_is_not_active() {
     let workspace_id = 7002;
     let master_id = 10;
-    let state_path = state_file_path(workspace_id);
+    let state_path = state_path(workspace_id);
     let saved_windows = vec![
         make_tiled_window(master_id, workspace_id, 1, 1, 600, 900),
         make_tiled_window(11, workspace_id, 2, 1, 400, 450),
     ];
-    save_layout_state(&state_path, master_id, workspace_id, &saved_windows)
+    save_state(&state_path, master_id, workspace_id, &saved_windows)
         .expect("save should succeed");
     let live_windows = vec![
         make_tiled_window(master_id, workspace_id, 1, 1, 600, 900),
@@ -87,12 +87,12 @@ fn resize_is_noop_when_master_layout_is_not_active() {
 fn shrink_master_clamps_width_to_minimum() {
     let workspace_id = 7003;
     let master_id = 10;
-    let state_path = state_file_path(workspace_id);
+    let state_path = state_path(workspace_id);
     let windows = vec![
         make_tiled_window(master_id, workspace_id, 1, 1, 100, 900),
         make_tiled_window(11, workspace_id, 2, 1, 900, 900),
     ];
-    save_layout_state(&state_path, master_id, workspace_id, &windows).expect("save should succeed");
+    save_state(&state_path, master_id, workspace_id, &windows).expect("save should succeed");
     let mut focused = make_tiled_window(master_id, workspace_id, 1, 1, 100, 900);
     focused.is_focused = true;
     let mut client = FakeClient::default();

@@ -2,7 +2,7 @@ mod common;
 
 use niri_ipc::Action;
 use niri_master_layout::layout::restore_columns;
-use niri_master_layout::state_file::SavedWindowSize;
+use niri_master_layout::state::SavedWindowSize;
 
 use common::fake_client::FakeClient;
 use common::windows::make_tiled_window;

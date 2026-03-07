@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::state_file::SavedWindowSize;
+use crate::state::SavedWindowSize;
 
-pub fn map_desired_columns(saved: &[SavedWindowSize]) -> HashMap<u64, usize> {
+pub fn desired_columns_by_id(saved: &[SavedWindowSize]) -> HashMap<u64, usize> {
     saved
         .iter()
         .map(|window| (window.id, window.column))

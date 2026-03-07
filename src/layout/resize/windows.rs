@@ -1,6 +1,6 @@
-use crate::window_utils::tiled_pos;
+use crate::layout::tiled_pos;
 
-pub(super) fn stack_window_ids(
+pub(super) fn column_window_ids(
     windows: &[niri_ipc::Window],
     workspace_id: u64,
     stack_column: usize,
@@ -14,7 +14,7 @@ pub(super) fn stack_window_ids(
         .collect()
 }
 
-pub(super) fn has_other_windows_in_column(
+pub(super) fn has_foreign_windows(
     windows: &[niri_ipc::Window],
     workspace_id: u64,
     column: usize,

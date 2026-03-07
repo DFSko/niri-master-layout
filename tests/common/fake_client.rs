@@ -23,7 +23,7 @@ impl FakeClient {
 }
 
 impl IpcClient for FakeClient {
-    fn focused_window(&mut self) -> io::Result<Option<Window>> {
+    fn focused(&mut self) -> io::Result<Option<Window>> {
         self.focused.pop_front().unwrap_or(Ok(None))
     }
 
@@ -31,15 +31,15 @@ impl IpcClient for FakeClient {
         self.windows.pop_front().unwrap_or_else(|| Ok(Vec::new()))
     }
 
-    fn run_action(&mut self, action: Action) -> io::Result<()> {
+    fn action(&mut self, action: Action) -> io::Result<()> {
         self.actions.push(action);
         if self.fail_run_action {
-            return Err(io::Error::other("run_action failed"));
+            return Err(io::Error::other("action failed"));
         }
         Ok(())
     }
 
-    fn run_action_best_effort(&mut self, action: Action) -> io::Result<()> {
+    fn action_best_effort(&mut self, action: Action) -> io::Result<()> {
         self.best_effort_actions.push(action);
         Ok(())
     }

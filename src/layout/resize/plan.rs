@@ -1,13 +1,19 @@
-use crate::cli::AppCommand;
-
-const RESIZE_STEP_PERCENT: f64 = 10.0;
-const MIN_MASTER_WIDTH_PERCENT: f64 = 10.0;
-const MAX_MASTER_WIDTH_PERCENT: f64 = 90.0;
+use crate::app::AppCommand;
 
 pub(super) enum ResizeDirection {
     GrowMaster,
     ShrinkMaster,
 }
+
+pub(super) struct ResizePlan {
+    pub(super) master_width_percent: f64,
+    pub(super) stack_width_percent: f64,
+    pub(super) focus_master_first: bool,
+}
+
+const RESIZE_STEP_PERCENT: f64 = 10.0;
+const MIN_MASTER_WIDTH_PERCENT: f64 = 10.0;
+const MAX_MASTER_WIDTH_PERCENT: f64 = 90.0;
 
 impl ResizeDirection {
     pub(super) fn from_command(command: AppCommand) -> Option<Self> {
@@ -17,12 +23,6 @@ impl ResizeDirection {
             AppCommand::Toggle => None,
         }
     }
-}
-
-pub(super) struct ResizePlan {
-    pub(super) master_width_percent: f64,
-    pub(super) stack_width_percent: f64,
-    pub(super) focus_master_first: bool,
 }
 
 pub(super) fn resize_plan(

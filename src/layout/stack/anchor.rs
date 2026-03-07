@@ -1,6 +1,6 @@
 use niri_ipc::Window;
 
-use crate::window_utils::tiled_pos;
+use crate::layout::tiled_pos;
 
 pub fn nearest_right_column_anchor(
     windows: &[Window],

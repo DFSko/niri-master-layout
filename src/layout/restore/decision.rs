@@ -1,11 +1,11 @@
-use super::types::{RestoreDecision, TargetRestoreState};
+use super::types::{RestoreDecision, RestoreTarget};
 
-pub fn decide_restore_action(state: &TargetRestoreState, target_column: usize) -> RestoreDecision {
-    if state.snapshot.current_column == target_column && !state.has_foreign_windows {
+pub fn decide_restore_action(target: &RestoreTarget, target_column: usize) -> RestoreDecision {
+    if target.column.index == target_column && !target.has_foreign_windows {
         return RestoreDecision::Done;
     }
 
-    if state.snapshot.column_window_ids.len() > 1 && state.has_foreign_windows {
+    if target.column.window_ids.len() > 1 && target.has_foreign_windows {
         return RestoreDecision::ExpelForeign;
     }
 

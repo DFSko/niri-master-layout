@@ -24,7 +24,7 @@ pub fn pull_windows_into_stack(
             break;
         }
 
-        client.run_action(Action::ConsumeWindowIntoColumn {})?;
+        client.action(Action::ConsumeWindowIntoColumn {})?;
     }
 
     Ok(())

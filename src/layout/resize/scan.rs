@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use crate::window_utils::tiled_pos;
+use crate::layout::tiled_pos;
 
-pub(super) fn collect_columns_and_master_column(
+pub(super) fn collect_column_widths(
     windows: &[niri_ipc::Window],
     workspace_id: u64,
     master_id: u64,
@@ -29,7 +29,7 @@ pub(super) fn collect_columns_and_master_column(
     (master_column == Some(leftmost_column)).then_some((column_widths, master_column))
 }
 
-pub(super) fn next_column_after(
+pub(super) fn next_column(
     column_widths: &BTreeMap<usize, i32>,
     column: usize,
 ) -> Option<usize> {

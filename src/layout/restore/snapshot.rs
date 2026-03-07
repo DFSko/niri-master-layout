@@ -2,16 +2,16 @@ use std::collections::HashMap;
 
 use niri_ipc::Window;
 
-use crate::window_utils::tiled_pos;
+use crate::layout::tiled_pos;
 
-use super::types::{RestoreSnapshot, TargetRestoreState};
+use super::types::{ColumnSnapshot, RestoreTarget};
 
-pub fn target_restore_state(
+pub fn snapshot_target(
     windows: &[Window],
     target_id: u64,
     target_column: usize,
     desired_by_id: &HashMap<u64, usize>,
-) -> Option<TargetRestoreState> {
+) -> Option<RestoreTarget> {
     let current = windows.iter().find(|window| window.id == target_id)?;
     let (current_column, _) = current.layout.pos_in_scrolling_layout?;
     let workspace_id = current.workspace_id?;
@@ -30,11 +30,11 @@ pub fn target_restore_state(
 
     column_window_ids.sort_unstable();
 
-    Some(TargetRestoreState {
+    Some(RestoreTarget {
         has_foreign_windows,
-        snapshot: RestoreSnapshot {
-            current_column,
-            column_window_ids,
+        column: ColumnSnapshot {
+            index: current_column,
+            window_ids: column_window_ids,
         },
     })
 }

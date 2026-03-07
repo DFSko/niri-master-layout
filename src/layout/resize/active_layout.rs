@@ -1,6 +1,7 @@
-use super::plan::{ResizeDirection, ResizePlan, resize_plan};
-use super::scan::{collect_columns_and_master_column, next_column_after};
-use super::windows::{has_other_windows_in_column, stack_window_ids};
+use super::plan::resize_plan;
+use super::plan::{ResizeDirection, ResizePlan};
+use super::scan::{collect_column_widths, next_column};
+use super::windows::{column_window_ids, has_foreign_windows};
 
 pub(super) struct ActiveMasterLayout {
     pub(super) master_id: u64,
@@ -16,13 +17,13 @@ impl ActiveMasterLayout {
         master_id: u64,
     ) -> Option<Self> {
         let (column_widths, master_column) =
-            collect_columns_and_master_column(windows, workspace_id, master_id)?;
+            collect_column_widths(windows, workspace_id, master_id)?;
         let master_column = master_column?;
-        let stack_column = next_column_after(&column_widths, master_column)?;
-        let stack_window_ids = stack_window_ids(windows, workspace_id, stack_column);
+        let stack_column = next_column(&column_widths, master_column)?;
+        let stack_window_ids = column_window_ids(windows, workspace_id, stack_column);
 
         if stack_window_ids.is_empty()
-            || has_other_windows_in_column(windows, workspace_id, master_column, master_id)
+            || has_foreign_windows(windows, workspace_id, master_column, master_id)
         {
             return None;
         }

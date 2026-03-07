@@ -1,6 +1,6 @@
 mod common;
 
-use niri_master_layout::state_file::{load_layout_state, save_layout_state};
+use niri_master_layout::state::{load_state, save_state};
 
 use common::windows::{make_floating_window, make_tiled_window};
 use common::{remove_file_if_exists, unique_temp_state_path};
@@ -14,8 +14,8 @@ fn save_and_load_roundtrip_with_workspace() {
         make_floating_window(30, 42, 500, 300),
     ];
 
-    save_layout_state(&path, 10, 42, &windows).expect("save should succeed");
-    let state = load_layout_state(&path).expect("load should succeed");
+    save_state(&path, 10, 42, &windows).expect("save should succeed");
+    let state = load_state(&path).expect("load should succeed");
 
     assert_eq!(state.workspace_id, 42);
     assert_eq!(state.master_id, 10);

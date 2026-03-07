@@ -1,7 +1,7 @@
 #[derive(Clone)]
-pub struct TargetRestoreState {
+pub struct RestoreTarget {
     pub has_foreign_windows: bool,
-    pub snapshot: RestoreSnapshot,
+    pub column: ColumnSnapshot,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -12,7 +12,7 @@ pub enum RestoreDecision {
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]
-pub struct RestoreSnapshot {
-    pub current_column: usize,
-    pub column_window_ids: Vec<u64>,
+pub struct ColumnSnapshot {
+    pub index: usize,
+    pub window_ids: Vec<u64>,
 }

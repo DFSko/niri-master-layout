@@ -3,10 +3,10 @@ use std::io;
 use niri_ipc::Window;
 
 use crate::ipc::IpcClient;
-use crate::window_utils::tiled_pos;
+use crate::layout::tiled_pos;
 
 pub fn focused_stack_column(client: &mut impl IpcClient) -> io::Result<Option<usize>> {
-    let Some(current) = client.focused_window()? else {
+    let Some(current) = client.focused()? else {
         return Ok(None);
     };
 

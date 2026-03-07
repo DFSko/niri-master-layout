@@ -10,12 +10,12 @@ pub fn remove_file_if_exists(path: &Path) -> io::Result<()> {
     }
 }
 
-pub struct PendingStateCleanup<'a> {
+pub struct CleanupGuard<'a> {
     path: &'a Path,
     keep: bool,
 }
 
-impl<'a> PendingStateCleanup<'a> {
+impl<'a> CleanupGuard<'a> {
     pub fn new(path: &'a Path) -> Self {
         Self { path, keep: false }
     }
@@ -25,7 +25,7 @@ impl<'a> PendingStateCleanup<'a> {
     }
 }
 
-impl Drop for PendingStateCleanup<'_> {
+impl Drop for CleanupGuard<'_> {
     fn drop(&mut self) {
         if self.keep {
             return;
