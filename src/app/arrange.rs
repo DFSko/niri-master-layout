@@ -2,11 +2,10 @@ use std::io;
 
 use niri_ipc::{Action, ColumnDisplay};
 
-use crate::ipc::IpcClient;
+use super::context::WorkspaceContext;
+use crate::ipc::{IpcClient, focus, focus_with_width};
 use crate::layout::{nearest_right_column_anchor, pull_windows_into_stack, style_stack_column};
 use crate::state::{CleanupGuard, save_state};
-
-use super::context::{WorkspaceContext, focus, focus_with_width};
 
 const MASTER_WIDTH_PERCENT: f64 = 60.0;
 const MAX_STACK_WINDOWS: usize = 3;
@@ -54,7 +53,9 @@ pub fn arrange(client: &mut impl IpcClient, context: &WorkspaceContext) -> io::R
     state_cleanup.keep();
     focus_with_width(client, context.master_id, MASTER_WIDTH_PERCENT)?;
 
-    client.action(Action::FocusWindow { id: stack_anchor_id })?;
+    client.action(Action::FocusWindow {
+        id: stack_anchor_id,
+    })?;
     client.action(Action::SetColumnDisplay {
         display: ColumnDisplay::Normal,
     })?;

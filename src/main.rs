@@ -5,13 +5,9 @@ use niri_master_layout::app::AppCommand;
 use niri_master_layout::ipc::SocketClient;
 
 fn main() -> io::Result<()> {
-    let command = parse_args()?;
+    let command = parse_args_from(std::env::args().skip(1))?;
     let mut client = SocketClient::connect()?;
     app::run(&mut client, command)
-}
-
-fn parse_args() -> io::Result<AppCommand> {
-    parse_args_from(std::env::args().skip(1))
 }
 
 fn parse_args_from(args: impl IntoIterator<Item = String>) -> io::Result<AppCommand> {

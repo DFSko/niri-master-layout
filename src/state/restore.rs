@@ -1,9 +1,7 @@
 use std::io;
 use std::path::Path;
 
-use niri_ipc::Action;
-
-use crate::ipc::{IpcClient, set_height, set_width};
+use crate::ipc::{IpcClient, focus_best_effort, set_height, set_width};
 use crate::layout::restore_columns;
 use crate::state::load_state;
 
@@ -19,9 +17,7 @@ pub fn restore(client: &mut impl IpcClient, path: &Path) -> io::Result<()> {
         set_height(client, window.id, window.height)?;
     }
 
-    client.action_best_effort(Action::FocusWindow {
-        id: state.master_id,
-    })?;
+    focus_best_effort(client, state.master_id)?;
     remove_file_if_exists(path)
 }
 

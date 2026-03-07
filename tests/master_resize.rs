@@ -64,8 +64,7 @@ fn resize_is_noop_when_master_layout_is_not_active() {
         make_tiled_window(master_id, workspace_id, 1, 1, 600, 900),
         make_tiled_window(11, workspace_id, 2, 1, 400, 450),
     ];
-    save_state(&state_path, master_id, workspace_id, &saved_windows)
-        .expect("save should succeed");
+    save_state(&state_path, master_id, workspace_id, &saved_windows).expect("save should succeed");
     let live_windows = vec![
         make_tiled_window(master_id, workspace_id, 1, 1, 600, 900),
         make_tiled_window(11, workspace_id, 1, 2, 600, 450),
